@@ -24,7 +24,8 @@ dependencies:
   permission_handler: ^2.2.0
   community_material_icon: ^2.8.94
   kilobyte: ^0.2.0
-  scoped_model: ^1.0.1
+  rxdart: ^0.21.0
+  shared_preferences: ^0.5.1+2
 
 dev_dependencies:
   flutter_test:
