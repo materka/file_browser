@@ -1,16 +1,22 @@
 import 'package:community_material_icon/community_material_icon.dart';
 import 'package:file_browser/bloc/bloc_provider.dart';
 import 'package:file_browser/bloc/directory_bloc.dart';
-import 'package:file_browser/directory_mode.dart';
-import 'package:file_browser/file_action.dart';
+import 'package:file_browser/directory_mode_type.dart';
+import 'package:file_browser/file_action_type.dart';
+import 'package:file_browser/views/settings_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
-class FileAppBar extends StatelessWidget {
+class DirectoryAppBar extends StatelessWidget {
   DirectoryBloc _bloc;
+  final String title;
+  BuildContext _context;
+
+  DirectoryAppBar(this.title);
 
   @override
   Widget build(BuildContext context) {
+    _context = context;
     _bloc = BlocProvider.of(context);
     return StreamBuilder(
         initialData: DirectoryViewModelState(),
@@ -18,16 +24,17 @@ class FileAppBar extends StatelessWidget {
         builder: (BuildContext context,
             AsyncSnapshot<DirectoryViewModelState> snapshot) {
           return AppBar(
-              leading: snapshot.data.mode == DirectoryMode.selection
+              title: Text(this.title),
+              leading: snapshot.data.mode == DirectoryModeType.selection
                   ? IconButton(
                       icon: Icon(CommunityMaterialIcons.close),
                       onPressed: () =>
-                          _bloc.onToggleMode(DirectoryMode.navigation),
+                          _bloc.onToggleMode(DirectoryModeType.navigation),
                     )
-                  : !snapshot.data.isDirectoryRoot
+                  : !snapshot.data.isRoot
                       ? IconButton(
                           icon: Icon(CommunityMaterialIcons.arrow_left),
-                          onPressed: () => _bloc.open(_bloc.currentFile.parent),
+                          onPressed: () => _bloc.ascend(),
                         )
                       : Container(),
               actions: _availableActions(snapshot.data));
@@ -41,30 +48,31 @@ class FileAppBar extends StatelessWidget {
   Widget _actionSelectAll(DirectoryViewModelState state) {
     return _actionBuilder(
         CommunityMaterialIcons.checkbox_multiple_marked_outline,
-        () => _bloc.onFileAction(FileAction.select, state.files));
+        () => _bloc.onFileAction(FileActionType.select, state.entities));
   }
 
   Widget _actionDeSelectAll(DirectoryViewModelState state) {
     return _actionBuilder(CommunityMaterialIcons.checkbox_multiple_marked,
-        () => _bloc.onFileAction(FileAction.select, {}));
+        () => _bloc.onFileAction(FileActionType.select, {}));
   }
 
   Widget _actionDelete(DirectoryViewModelState state) {
     return _actionBuilder(
         CommunityMaterialIcons.trash_can,
         () => _askYesOrNo('Selected items will be deleted.').then((ok) => ok
-            ? _bloc.onFileAction(FileAction.delete, state.selectedFiles)
+            ? _bloc.onFileAction(FileActionType.delete, state.entities)
             : null));
   }
 
   Widget _actionOverFlow(DirectoryViewModelState state) {
-    return PopupMenuButton<FileAction>(
-      onSelected: (action) => _bloc.onFileAction(action, {}),
-      itemBuilder: (context) => <PopupMenuEntry<FileAction>>[
-            CheckedPopupMenuItem<FileAction>(
-              checked: state.showHiddenFiles,
-              value: FileAction.toggleHidden,
-              child: const Text('Show hidden files'),
+    return PopupMenuButton<Widget>(
+      onSelected: (action) => Navigator.push(
+              _context, MaterialPageRoute(builder: (context) => action))
+          .then((value) => _bloc.refresh()),
+      itemBuilder: (context) => <PopupMenuEntry<Widget>>[
+            PopupMenuItem<Widget>(
+              value: SettingsView(),
+              child: const Text('Settings'),
             )
           ],
     );
@@ -72,18 +80,13 @@ class FileAppBar extends StatelessWidget {
 
   List<Widget> _availableActions(DirectoryViewModelState state) {
     List<Widget> actions = [];
-    if (state.mode == DirectoryMode.selection) {
+    if (state.mode == DirectoryModeType.selection) {
       actions.add(_actionSelectAll(state));
       actions.add(_actionDeSelectAll(state));
       actions.add(_actionDelete(state));
     }
     actions.add(_actionOverFlow(state));
     return actions;
-  }
-
-  @override
-  Future<bool> exit() {
-    return _askYesOrNo('The app will quit.') ?? false;
   }
 
   Future<bool> _askYesOrNo(String title) {

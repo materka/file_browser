@@ -1,1 +1,0 @@
-typedef R SingleFunction<T, R>(T arg0);

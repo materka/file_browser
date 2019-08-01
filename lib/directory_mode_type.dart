@@ -1,0 +1,1 @@
+enum DirectoryModeType { navigation, selection }
